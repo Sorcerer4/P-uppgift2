@@ -1,18 +1,21 @@
 from math import *
 from sys import *
+import xlwings as xw
 
-class sphere:
+class Sphere:
     def __init__(self,r,x0,y0,token_list, res):
         self.x0 = x0
         self.y0 = y0
         self.z0 = self.calc_z0(r, x0,y0)
         self.token_list = token_list
-        self.brightness = self.rayTrace(r,res)
+        self.brightness = self.ray_trace(r, res)
         self.tokens = self.token_translate(self.brightness)
 
-    def rayTrace(self, r, res):
+    def ray_trace(self, r, res):
 
         x_res, y_res = res
+
+
         b_matrix = []
 
         for y_pixel in range(y_res + 1):
@@ -51,8 +54,6 @@ class sphere:
         return b
 
     def token_translate(self, b_vals):
-        print(numpy.shape(b_vals))
-        count = 0
         t_matrix = []
         for b_row in b_vals:
             t_row = []
@@ -77,56 +78,49 @@ class sphere:
         return t_matrix
 
 
-
 def read():
-    #Params:
-    res =  [60, 60]
-    """"#TESTING
-    r = float(input("Input sphere radius: "))
-    x0 = float(input("Input light origin x cord: "))
-    y0 = float(input("Input light origin y cord: "))
-    """
+    debugmode = True
 
-    #TESTING
-    r = 4
-    x0 = 1
-    y0 = 0
+    #Read from excel https://www.geeksforgeeks.org/python/working-with-excel-files-in-python-using-xlwings/
+    print("reading parameters.xlsx..")
+    wb = xw.Book('parameters.xlsx')
+    wks = xw.sheets
+    ws = wks[0]
 
-    token_list = ["M", "*", "+", "-","."," "]
+    r,x0, y0 = ws.range("B2:B4").value
+    res = ws.range("B5:B6").value
+    token_list= ws.range("B7:B12").value
+
+    print("Done reading.")
+    #Checks
+
+    if debugmode: print("Beginning indata checks")
+    while True:
+        disc = r ** 2 - x0 ** 2 - y0 ** 2
+        if disc >= 0:
+            if debugmode: print("pass pos_disc")
+            break
+        else:
+            x0, y0 = input("Negativ discriminant, light source outside of range, please enter new values manually (X,Y): ")
+
+    #Convert values to right forms after passing all tests
+    r = int(r)
+    x0 = int(x0)
+    y0 = int(y0)
+    res = [int(par) for par in res]
 
     return r,x0,y0,token_list, res
 
-
-
-
-
-    return
-
-            #Calculation for given (x,y) pa
 def main():
 
     #Read radius and light origin (x and y)
     r, x0, y0, token_list, res= read()
-    s = sphere(r,x0,y0,token_list,res)
+    s = Sphere(r,x0,y0,token_list,res)
 
-    for y in s.tokens:
-        print(y)
-
-
-"""
-    output_string = ""
-    count = 1
-    for pixel in pixel_list:
-        output_string = output_string + " " + pixel.token
-        if count%(x_resolution+1) == 0:
-            output_string += ","''
-        count+=1
-
-    outputlist = output_string.split(",")
-    for x in outputlist:
-        print(x)
-"""
-
+    for row in s.tokens:
+        for element in row:
+            print(element, end=" ")
+        print("\r")
 
 if __name__ == '__main__':
     main()
