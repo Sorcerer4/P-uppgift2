@@ -1,5 +1,7 @@
+import tkinter
 from math import *
 from sys import *
+from tkinter import *
 import xlwings as xw
 
 class Sphere:
@@ -14,8 +16,6 @@ class Sphere:
     def ray_trace(self, r, res):
 
         x_res, y_res = res
-
-
         b_matrix = []
 
         for y_pixel in range(y_res + 1):
@@ -60,16 +60,26 @@ class Sphere:
             for b in b_row:
                 if b <= 0:
                     t_row.append(self.token_list[0])
-                elif 0 < b <= 0.3:
+                elif 0 < b <= 0.1:
                     t_row.append(self.token_list[1])
-                elif 0.3 < b <= 0.5:
+                elif 0.1 < b <= 0.2:
                     t_row.append(self.token_list[2])
-                elif 0.5 < b <= 0.7:
+                elif 0.2 < b <= 0.3:
                     t_row.append(self.token_list[3])
-                elif 0.7 < b <= 0.9:
+                elif 0.3 < b <= 0.4:
                     t_row.append(self.token_list[4])
-                elif 0.9 < b <= 1:
+                elif 0.4 < b <= 0.5:
                     t_row.append(self.token_list[5])
+                elif 0.5 < b <= 0.6:
+                    t_row.append(self.token_list[6])
+                elif 0.6 < b <= 0.7:
+                    t_row.append(self.token_list[7])
+                elif 0.7 < b <= 0.8:
+                    t_row.append(self.token_list[8])
+                elif 0.8 < b <= 0.9:
+                    t_row.append(self.token_list[9])
+                elif 0.9 < b <= 1:
+                    t_row.append(self.token_list[10])
                 else:
                     print("Error no matching token found")
                     exit()
@@ -77,6 +87,31 @@ class Sphere:
             t_matrix.append(t_row)
         return t_matrix
 
+class GUI(Tk, Sphere):
+    def __init__(self):
+        super().__init__()
+        self.title("Ray Traced Ball")
+        self.geometry("600x400")
+
+        self.print_string = StringVar()
+
+        self.label = Label(self, text=self.print_string, font= "Arial 17 bold")
+        self.label.pack(pady=20)
+
+        self.print_string.set("New text!")
+        self.update()
+
+        self.mainloop()
+
+    def display_update(self, Sphere):
+
+        output = ''
+        for rad in Sphere.tokens:
+            output += ''.join(rad)
+
+        print(output)
+        self.print_string.set(output)
+        self.update()
 
 def read():
     debugmode = True
@@ -89,9 +124,16 @@ def read():
 
     r,x0, y0 = ws.range("B2:B4").value
     res = ws.range("B5:B6").value
-    token_list= ws.range("B7:B12").value
+    token_list= ws.range("B7:B17").value
 
     print("Done reading.")
+
+    #Convert values to right forms
+    r = int(r)
+    x0 = int(x0)
+    y0 = int(y0)
+    res = [int(par) for par in res]
+
     #Checks
 
     if debugmode: print("Beginning indata checks")
@@ -103,11 +145,7 @@ def read():
         else:
             x0, y0 = input("Negativ discriminant, light source outside of range, please enter new values manually (X,Y): ")
 
-    #Convert values to right forms after passing all tests
-    r = int(r)
-    x0 = int(x0)
-    y0 = int(y0)
-    res = [int(par) for par in res]
+
 
     return r,x0,y0,token_list, res
 
@@ -115,12 +153,32 @@ def main():
 
     #Read radius and light origin (x and y)
     r, x0, y0, token_list, res= read()
+
+    #Calculate sphere
     s = Sphere(r,x0,y0,token_list,res)
 
-    for row in s.tokens:
-        for element in row:
-            print(element, end=" ")
-        print("\r")
+    """for row in s.tokens:
+        for x in row:
+            print(" "+ (x), end='')
+        print("\n")"""
 
-if __name__ == '__main__':
+    app = Tk()
+    app.attributes('-fullscreen', True)
+    app.title("RayTracedBall")
+
+    T = Text(app, height=900, width=1000)
+    output = ''
+    for rad in s.tokens:
+        output += ''.join(rad)
+        output+="\n"
+
+    fact = """Hej"""
+    T.pack()
+    T.insert(tkinter.END, output)
+
+
+    app.mainloop()
+
+
+if __name__ == '__main__'
     main()
