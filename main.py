@@ -149,6 +149,14 @@ def read():
 
     return r,x0,y0,token_list, res
 
+
+def GUIloop(event):
+    print("Cords: " + str(event.x)+ " , " + str(event.y))
+    x = event.x
+    y = event.y
+
+
+
 def main():
 
     #Read radius and light origin (x and y)
@@ -163,7 +171,8 @@ def main():
         print("\n")"""
 
     app = Tk()
-    app.attributes('-fullscreen', True)
+    #app.attributes('-fullscreen', True)
+    app.geometry("1200x1000")
     app.title("RayTracedBall")
 
     T = Text(app, height=900, width=1000)
@@ -176,9 +185,9 @@ def main():
     T.pack()
     T.insert(tkinter.END, output)
 
-
+    app.bind("<ButtonRelease>",GUIloop)
     app.mainloop()
 
 
-if __name__ == '__main__'
+if __name__ == '__main__':
     main()
