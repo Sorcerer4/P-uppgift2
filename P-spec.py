@@ -13,8 +13,6 @@
 #5. En matris av ljusvärden skapas, antalet punkter bestämms av upplösningen.
 #6. Ljusvärdena konverteras en för en till tecken enligt en lista som importerades tidigare.
 
-
-
 class Sphere:
     def __init__(self,r,x0,y0,token_list, res):
         pass
