@@ -6,9 +6,13 @@ import numpy as np
 
 class Scenery:
     def __init__(self, r,x0,y0,token_list,res):
-        self.display =  np.zeros(res)
-        self.res = res
+        self.display_values =  np.zeros(res)
         self.token_list = token_list
+
+        #Settings for render
+        self.res = res
+        self.windowsize = (1000, 1000)
+
 
         #Create ball
         self.ball_y = res[0] / 2
@@ -20,24 +24,75 @@ class Scenery:
     def merge(self):
         ball_diameter = self.b.r*2
         start = (self.res[0]-ball_diameter) // 2
-        print(start)
         b_image = np.array(self.b.brightness)
-        self.display[start:start+ball_diameter,start:start+ball_diameter] = b_image
+        self.display_values[start:start + ball_diameter, start:start + ball_diameter] = b_image
 
     def insert_shadow(self):
 
         for cord in self.shadow:
             x_res, y_res = self.res
             x,y = [int(i) for i in cord]
-            print(x,y)
-            self.display[int(x+x_res/2)][int(y+y_res/2)] = 10
+            self.display_values[int(x + x_res / 2)][int(y + y_res / 2)] = 10
 
-    def viewscreen(self):
-        for row in self.display:
-            for value in row:
-                print(self.token_translate(value)+ " ",end="")
-            print()
+    def inspectBrightnessValue(self):
 
+        matrix = self.display_values
+        wb = xw.Book()  # opens a new workbook
+        sheet = wb.sheets[0]
+
+        # Write the matrix to Excel starting at cell A1
+        sheet.range("A1").value = matrix.tolist()  # xlwings writes lists directly
+
+        # Optionally format (e.g., set column width, number format)
+        sheet.range("A1").expand().number_format = "0.00"  # two decimals
+        sheet.autofit()
+
+        # Save and close
+        wb.save("matrix_output.xlsx")
+        wb.close()
+
+        print("✅ Excel file 'matrix_output.xlsx' created successfully.")
+    def render(self):
+        width , height = self.windowsize
+        pygame.init()
+        screen = pygame.display.set_mode((width,height))
+        pygame.display.set_caption("Ray Traced Ball")
+
+        clock = pygame.time.Clock()
+
+        pixel_width = round(width/self.res[0])
+        pixel_height = round(height/self.res[1])
+
+        print(width,pixel_width,height,pixel_height)
+
+        running = True
+
+        while running:
+            screen.fill((0,0,0))
+            x = 0
+            y = 0
+            for row in self.display_values:
+                for value in row:
+                    if value > 0 and value < 10:
+                        color = int(255*value) #Interpolation, as value is between 0 and 1.
+                    elif value == 10:
+                        color = 200             #Shadow dark grey pitch
+                    elif value <= 0:
+                        color = 255             #Darkness
+                    else:
+
+                      print("Unexpeted brightness value")
+
+                    pygame.draw.rect(screen,(color,color,color), (x,y,pixel_width,pixel_height))
+                    x += pixel_width
+                x = 0
+                y += pixel_height
+            pygame.display.flip()
+            clock.tick(60)
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
     def token_translate(self, b):
         if b <= 0:
             return(self.token_list[0])
@@ -68,12 +123,12 @@ class Scenery:
             exit()
 
 class ball:
-    def __init__(self,r,x0,y0):
+    def __init__(self,r,x0,y0,):
         self.r = r
         self.x0 = x0
         self.y0 = y0
         self.z0 = self.calc_z(r, x0, y0)
-        self.center = [0, 0, 50]
+        self.center = [0, 0, 500]
         self.brightness,self.shadow_cords = self.ray_trace()
 
 
@@ -116,9 +171,7 @@ class ball:
                 return [shadow_x, shadow_y]
 
 
-
     def calc_z(self,r,x,y):
-
         try:
             z = sqrt(r ** 2 - x ** 2 - y ** 2)
         except ValueError:
@@ -136,10 +189,6 @@ class ball:
             b = (x*self.x0+y*self.y0+z*self.z0)/r**2
 
         return b
-
-class GUI():
-    def __init__(self):
-        self.surface = pygame.Surface()
 
 def read():
     debugmode = True
@@ -187,9 +236,10 @@ def main():
 
     #Create scene
     s = Scenery(r,x0,y0,token_list,res)
-    s.merge()
     s.insert_shadow()
-    s.viewscreen()
+    s.merge()
+
+    s.render()
 
 
 if __name__ == '__main__':
