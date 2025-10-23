@@ -1,31 +1,48 @@
+from importlib import reload
 from math import *
 from sys import *
 import pygame
 import xlwings as xw
 import numpy as np
+from pandas.core.apply import relabel_result
+
 
 class Scenery:
-    def __init__(self, r,x0,y0,token_list,res):
-        self.display_values =  np.zeros(res)
+    def __init__(self, r,x0,y0,token_list,res, windowsize):
+
+        #Imporot settings for ball
+        self.r = r
+        self.x0 = x0
+        self.y0 = y0
+
+        #Import settings for render
         self.token_list = token_list
-
-        #Settings for render
         self.res = res
-        self.windowsize = (1000, 1000)
+        self.windowsize = windowsize
 
+        #Create empty screen
+        self.display_values =  np.zeros(res)
 
+    def createball(self,r, x0, y0):
         #Create ball
-        self.ball_y = res[0] / 2
-        self.ball_x = res[1] / 2
+        self.ball_y = self.res[0] / 2
+        self.ball_x = self.res[1] / 2
 
         self.b = ball(r,x0,y0)
         self.shadow = self.b.shadow_cords
 
     def merge(self):
-        ball_diameter = self.b.r*2
-        start = (self.res[0]-ball_diameter) // 2
         b_image = np.array(self.b.brightness)
-        self.display_values[start:start + ball_diameter, start:start + ball_diameter] = b_image
+
+        ball_diameter = self.b.r*2
+        start_x = (self.res[0] - ball_diameter) // 2
+        start_y = (self.res[1] - ball_diameter) // 2
+
+        mask = b_image > 0
+
+        region = self.display_values[start_x:start_x + ball_diameter, start_y:start_y + ball_diameter] # Region for ball to be inserted into
+        region[mask] = b_image[mask] #Uses matrix of False/True to replace elements in matrix with resp. to mask
+        self.display_values[start_x:start_x + ball_diameter, start_x:start_x + ball_diameter] = region
 
     def insert_shadow(self):
 
@@ -34,65 +51,35 @@ class Scenery:
             x,y = [int(i) for i in cord]
             self.display_values[int(x + x_res / 2)][int(y + y_res / 2)] = 10
 
-    def inspectBrightnessValue(self):
-
-        matrix = self.display_values
-        wb = xw.Book()  # opens a new workbook
-        sheet = wb.sheets[0]
-
-        # Write the matrix to Excel starting at cell A1
-        sheet.range("A1").value = matrix.tolist()  # xlwings writes lists directly
-
-        # Optionally format (e.g., set column width, number format)
-        sheet.range("A1").expand().number_format = "0.00"  # two decimals
-        sheet.autofit()
-
-        # Save and close
-        wb.save("matrix_output.xlsx")
-        wb.close()
-
-        print("✅ Excel file 'matrix_output.xlsx' created successfully.")
-    def render(self):
-        width , height = self.windowsize
-        pygame.init()
-        screen = pygame.display.set_mode((width,height))
-        pygame.display.set_caption("Ray Traced Ball")
-
+    def render(self,screen,pixel_width,pixel_height):
         clock = pygame.time.Clock()
 
-        pixel_width = round(width/self.res[0])
-        pixel_height = round(height/self.res[1])
+        screen.fill((0,0,0)) #Fill screen with black background
+        x = y = 0
 
-        print(width,pixel_width,height,pixel_height)
+        for row in self.display_values:
+            for value in row:
+                if value > 0 and value < 10:
+                    color = int(255*value) #Interpolation, as value is between 0 and 1.
+                elif value == 10:
+                    color = 100             #Shadow dark grey pitch
+                elif value <= 0:
+                    color = 255             #Background Color
+                else:
+                  print("Unexpeted brightness value during render")
 
-        running = True
+                pygame.draw.rect(screen,(color,color,color), (x,y,pixel_width,pixel_height))
+                x += pixel_width
 
-        while running:
-            screen.fill((0,0,0))
+            #Cycle next row
             x = 0
-            y = 0
-            for row in self.display_values:
-                for value in row:
-                    if value > 0 and value < 10:
-                        color = int(255*value) #Interpolation, as value is between 0 and 1.
-                    elif value == 10:
-                        color = 200             #Shadow dark grey pitch
-                    elif value <= 0:
-                        color = 255             #Darkness
-                    else:
+            y += pixel_height
 
-                      print("Unexpeted brightness value")
+        #Update screen
+        pygame.display.flip()
+        clock.tick(60)
 
-                    pygame.draw.rect(screen,(color,color,color), (x,y,pixel_width,pixel_height))
-                    x += pixel_width
-                x = 0
-                y += pixel_height
-            pygame.display.flip()
-            clock.tick(60)
 
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
     def token_translate(self, b):
         if b <= 0:
             return(self.token_list[0])
@@ -122,13 +109,62 @@ class Scenery:
             print("Error no matching token found")
             exit()
 
+    def mainloop(self):
+        r = self.r
+        x0 = self.x0
+        y0 = self.y0
+
+        width , height = self.windowsize
+        pygame.init()
+        screen = pygame.display.set_mode((width,height))
+        pygame.display.set_caption("Ray Traced Ball")
+
+        running = True
+
+        while running:
+            self.display_values = np.zeros(self.res)
+
+            self.createball(r,x0,y0)
+            self.insert_shadow()
+            self.merge()
+
+            #Compute render parameters
+            ball_diameter = self.b.r * 2
+            start_x = (self.res[0] - ball_diameter) // 2
+            start_y = (self.res[1] - ball_diameter) // 2
+            pixel_width = round(width / self.res[0])
+            pixel_height = round(height / self.res[1])
+
+            self.render(screen, pixel_width,pixel_height)
+
+            waiting = True
+            while waiting:
+                event = pygame.event.wait()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+
+                    mouse_x,mouse_y = pygame.mouse.get_pos()
+                    rel_x_pixel = mouse_x-(start_x*pixel_width)
+                    rel_y_pixel = mouse_y-(start_y*pixel_height)
+
+                    rel_x = rel_x_pixel/pixel_width - self.r
+                    rel_y = rel_y_pixel/pixel_height - self.r
+
+                    pixel_radius = self.r*pixel_width
+                    disc =  pixel_radius** 2 - rel_x ** 2 - rel_y ** 2
+                    print("mouse disc calc")
+                    print(pixel_radius,rel_x,rel_y)
+                    if disc > 0:
+                        x0 = rel_x
+                        y0 = rel_y
+                        waiting = False
+
 class ball:
     def __init__(self,r,x0,y0,):
         self.r = r
         self.x0 = x0
         self.y0 = y0
         self.z0 = self.calc_z(r, x0, y0)
-        self.center = [0, 0, 500]
+        self.center = [0, 0, 2*self.r]
         self.brightness,self.shadow_cords = self.ray_trace()
 
 
@@ -176,6 +212,7 @@ class ball:
             z = sqrt(r ** 2 - x ** 2 - y ** 2)
         except ValueError:
             print("Error:Light origin outside of target sphere")
+            print(f"r: {r},x:{x},y:{y}")
             exit()
         return z
 
@@ -232,15 +269,12 @@ def read():
 def main():
 
     #Read radius and light origin (x and y)
-    r, x0, y0, token_list, res= read()
+    r, x0, y0, token_list, res = read()
 
     #Create scene
-    s = Scenery(r,x0,y0,token_list,res)
-    s.insert_shadow()
-    s.merge()
-
-    s.render()
-
+    windowsize = 1000,1000
+    s = Scenery(r, x0, y0, token_list, res, windowsize)
+    s.mainloop()
 
 if __name__ == '__main__':
     main()
